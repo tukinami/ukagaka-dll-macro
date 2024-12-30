@@ -60,7 +60,7 @@ DLLへのパスを`Option<String>`で返します。
 
 `register_dll_path_string` が呼ばれていないと、`None`しか返しません。
 
-`register_dll_path_string`は`define_dll_macro`で呼ばれているので、通常`register~`を手動で呼ぶ必要はありません。
+`register_dll_path_string`は`define_dll_main`で呼ばれているので、通常`register~`を手動で呼ぶ必要はありません。
 
 ## 例
 
