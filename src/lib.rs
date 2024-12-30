@@ -20,7 +20,7 @@
 //!     true
 //! }
 //!
-//! fn ukagaka_request(_s: &Vec<u8>) -> Vec<i8> {
+//! fn ukagaka_request(_s: &[u8]) -> Vec<i8> {
 //!     if let Some(_dll_path) = read_dll_path_string() {
 //!         // process with dll path & s(contents of request).
 //!     }
