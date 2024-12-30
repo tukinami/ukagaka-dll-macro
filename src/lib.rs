@@ -148,14 +148,16 @@ macro_rules! define_dll_main {
     };
     ($process_detach:expr, $process_attach:expr) => {
         #[no_mangle]
-        pub extern "system" fn DllMain(
+        pub unsafe extern "system" fn DllMain(
             h_module: HINSTANCE,
             ul_reason_for_call: DWORD,
             _l_reserved: LPVOID,
         ) -> BOOL {
             match ul_reason_for_call {
                 DLL_PROCESS_ATTACH => {
-                    register_dll_path_string(h_module);
+                    unsafe {
+                        register_dll_path_string(h_module);
+                    }
                     $process_attach;
                 }
                 DLL_PROCESS_DETACH => {
