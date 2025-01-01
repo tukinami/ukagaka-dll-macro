@@ -236,3 +236,46 @@ macro_rules! define_unload {
         }
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod slice_i8_to_hglobal {
+        use super::*;
+
+        #[test]
+        fn checking_value() {
+            let mut h_len_raw = 10 as c_long;
+            let h_len = &mut h_len_raw as *mut c_long;
+            let data = [1, 2, 3, 4];
+            let result = unsafe { slice_i8_to_hglobal(h_len, &data) };
+
+            let result_vec =
+                unsafe { std::slice::from_raw_parts(result as *mut i8, *h_len as usize).to_vec() };
+            unsafe { GlobalFree(result) };
+
+            assert_eq!(result_vec, data.to_vec());
+            assert_eq!(h_len_raw, 4);
+        }
+    }
+
+    mod hglobal_to_vec_u8 {
+        use super::*;
+
+        #[test]
+        fn checking_value() {
+            let len = 4;
+            let h = unsafe { GlobalAlloc(GMEM_FIXED, len) };
+            let case = [1, 2, 3, 4, 0];
+
+            let h_slice = unsafe { std::slice::from_raw_parts_mut(h as *mut u8, len) };
+            h_slice.clone_from_slice(&case[..4]);
+
+            let result = hglobal_to_vec_u8(h, len as c_long);
+            unsafe { GlobalFree(h) };
+
+            assert_eq!(result, case.to_vec());
+        }
+    }
+}
