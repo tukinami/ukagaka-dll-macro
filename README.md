@@ -32,15 +32,16 @@ use ukagaka_dll_macro::*;
 
 関数`DllMain`を定義します。
 
-引数1つなら、`PROCESS_DETACH`時、2つなら、2つめが`PROCESS_ATTACH`時にそれぞれ処理が走ります。
+引数は順番に、`DLL_PROCESS_ATTACH`時、`DLL_PROCESS_DETACH`時、`DLL_THREAD_ATTACH`時、`DLL_THREAD_DETACH`時の処理になります。
+それぞれ省略可で、もし、途中を飛ばしたい場合、`()`を指定してください。それでその時点での処理はなくなります。
 引数なしなら、以下の動作のみになります。
-内部で `register_dll_path_string` を呼んで、DLLへのパスを記録しています。
+内部で`DLL_PROCESS_ATTACH`時に`register_dll_path_string`を呼んで、DLLへのパスを記録しています。
 
 ### `define_load`マクロ
 
 関数`load`を定義します。
 
-引数で`bool`を返す関数名を渡してください。
+引数で`bool`を返す関数名を渡してください(省略可)。
 
 ### `define_request`マクロ
 
@@ -52,7 +53,7 @@ use ukagaka_dll_macro::*;
 
 関数`unload`を定義します。
 
-引数で`bool`を返す関数名を渡してください。
+引数で`bool`を返す関数名を渡してください(省略可)。
 
 ### `read_dll_path_string`関数
 
@@ -60,14 +61,18 @@ DLLへのパスを`Option<String>`で返します。
 
 `register_dll_path_string` が呼ばれていないと、`None`しか返しません。
 
-`register_dll_path_string`は`define_dll_main`で呼ばれているので、通常`register~`を手動で呼ぶ必要はありません。
+`register_dll_path_string`は`define_dll_main`で呼ばれているので、`define_dll_main`を使用しているときは`register~`を手動で呼ぶ必要はありません。
 
 ## 例
 
 ```rust
+// lib.rs
 use ukagaka_dll_macro::*;
 
 fn ukagaka_load() -> bool {
+    if let Some(_dll_path) = read_dll_path_string() {
+        // process with dll path
+    }
     true
 }
 
@@ -82,14 +87,10 @@ fn ukagaka_request(_s: &[u8]) -> Vec<i8> {
         .collect()
 }
 
-fn ukagaka_unload() -> bool {
-    true
-}
-
 define_dll_main!();
 define_load!(ukagaka_load);
 define_request!(ukagaka_request);
-define_unload!(ukagaka_unload);
+define_unload!();
 ```
 
 ## 使用ライブラリ

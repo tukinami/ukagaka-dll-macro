@@ -14,9 +14,13 @@
 //! # Examples
 //!
 //! ```
+//! // lib.rs
 //! use ukagaka_dll_macro::*;
 //!
 //! fn ukagaka_load() -> bool {
+//!     if let Some(_dll_path) = read_dll_path_string() {
+//!         // process with dll path
+//!     }
 //!     true
 //! }
 //!
@@ -31,14 +35,10 @@
 //!         .collect()
 //! }
 //!
-//! fn ukagaka_unload() -> bool {
-//!     true
-//! }
-//!
 //! define_dll_main!();
 //! define_load!(ukagaka_load);
 //! define_request!(ukagaka_request);
-//! define_unload!(ukagaka_unload);
+//! define_unload!();
 //! ```
 //!
 //! [`read_dll_path_string`]: crate::read_dll_path_string
@@ -104,9 +104,7 @@ pub unsafe fn slice_i8_to_hglobal(h_len: *mut c_long, data: &[i8]) -> HGLOBAL {
 
     let h_slice = unsafe { std::slice::from_raw_parts_mut(h as *mut i8, data_len) };
 
-    for (index, value) in data.iter().enumerate() {
-        h_slice[index] = *value;
-    }
+    h_slice.copy_from_slice(&data[..data_len]);
 
     h
 }
@@ -119,34 +117,38 @@ pub unsafe fn slice_i8_to_hglobal(h_len: *mut c_long, data: &[i8]) -> HGLOBAL {
 ///
 /// [`from_raw_parts`]: std::slice::from_raw_parts
 pub fn hglobal_to_vec_u8(h: HGLOBAL, len: c_long) -> Vec<u8> {
-    let mut s = vec![0; len as usize + 1];
+    let mut vec = unsafe { std::slice::from_raw_parts(h as *const u8, len as usize).to_vec() };
+    vec.push(0);
 
-    let slice = unsafe { std::slice::from_raw_parts(h as *const u8, len as usize) };
-
-    for (index, value) in slice.iter().enumerate() {
-        s[index] = *value;
-    }
-    s[len as usize] = b'\0';
-
-    s
+    vec
 }
 
 /// 関数`DLLMain`を定義するマクロ。
 ///
-/// 引数1つなら、`PROCESS_DETACH`時、2つなら、2つめが`PROCESS_ATTACH`時にそれぞれ処理が走ります。
+/// 引数は順番に、`DLL_PROCESS_ATTACH`時、`DLL_PROCESS_DETACH`時、`DLL_THREAD_ATTACH`時、`DLL_THREAD_DETACH`時の処理になります。
+/// それぞれ省略可で、もし、途中を飛ばしたい場合、`()`を指定してください。それでその時点での処理はなくなります。
 /// 引数なしなら、以下の動作のみになります。
-/// 内部で [`register_dll_path_string`] を呼んで、DLLへのパスを記録しています。
+/// 内部で`DLL_PROCESS_ATTACH`時に [`register_dll_path_string`] を呼んで、DLLへのパスを記録しています。
 ///
 /// [`register_dll_path_string`]: crate::register_dll_path_string
 #[macro_export]
 macro_rules! define_dll_main {
     () => {
-        define_dll_main!((), ());
+        define_dll_main!((), (), (), ());
     };
-    ($process_detach:expr) => {
-        define_dll_main!((), $process_detach);
+    ($process_attach:expr) => {
+        define_dll_main!($process_attach, (), (), ());
     };
-    ($process_detach:expr, $process_attach:expr) => {
+
+    ($process_attach:expr, $process_detach:expr) => {
+        define_dll_main!($process_attach, $process_detach, (), ());
+    };
+
+    ($process_attach:expr, $process_detach:expr, $thread_attach:expr) => {
+        define_dll_main!($process_attach, $process_detach, $thread_attach, ());
+    };
+
+    ($process_attach:expr, $process_detach:expr, $thread_attach:expr, $thread_detach:expr) => {
         #[no_mangle]
         pub unsafe extern "system" fn DllMain(
             h_module: HINSTANCE,
@@ -163,8 +165,12 @@ macro_rules! define_dll_main {
                 DLL_PROCESS_DETACH => {
                     $process_detach;
                 }
-                DLL_THREAD_ATTACH => {}
-                DLL_THREAD_DETACH => {}
+                DLL_THREAD_ATTACH => {
+                    $thread_attach;
+                }
+                DLL_THREAD_DETACH => {
+                    $thread_detach;
+                }
                 _ => {}
             }
             TRUE
@@ -174,7 +180,7 @@ macro_rules! define_dll_main {
 
 /// 関数`load`を定義するマクロ。
 ///
-/// 引数で`bool`を返す関数名を渡してください。
+/// 引数で`bool`を返す関数名を渡してください(省略可)。
 ///
 /// # Safety
 /// このマクロで定義される関数は、指定された`HGLOBAL`ポインタを [`GlobalFree`] で解放しています。
@@ -182,6 +188,15 @@ macro_rules! define_dll_main {
 /// [`GlobalFree`]: winapi::um::winbase::GlobalFree
 #[macro_export]
 macro_rules! define_load {
+    () => {
+        #[no_mangle]
+        pub unsafe extern "cdecl" fn load(h: HGLOBAL, _len: c_long) -> BOOL {
+            unsafe { GlobalFree(h) };
+
+            TRUE
+        }
+    };
+
     ($load_process:ident) => {
         #[no_mangle]
         pub unsafe extern "cdecl" fn load(h: HGLOBAL, _len: c_long) -> BOOL {
@@ -222,9 +237,16 @@ macro_rules! define_request {
 
 /// 関数`unload`を定義するマクロ。
 ///
-/// 引数で`bool`を返す関数名を渡してください。
+/// 引数で`bool`を返す関数名を渡してください(省略可)。
 #[macro_export]
 macro_rules! define_unload {
+    () => {
+        #[no_mangle]
+        pub extern "cdecl" fn unload() -> BOOL {
+            TRUE
+        }
+    };
+
     ($unload_process:ident) => {
         #[no_mangle]
         pub extern "cdecl" fn unload() -> BOOL {
