@@ -2,12 +2,6 @@
 
 [GitHub repository](https://github.com/tukinami/ukagaka-dll-macro)
 
-## 注意
-
-このライブラリは現在(2024-12-30)開発中です。
-
-思わぬバグや仕様変更の可能性があります。
-
 ## これは何?
 
 デスクトップマスコット、「伺か」用DLLのためのマクロ集です。
