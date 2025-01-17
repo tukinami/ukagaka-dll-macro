@@ -6,9 +6,9 @@
 
 デスクトップマスコット、「伺か」用DLLのためのマクロ集です。
 
-伺かのDLLに使われる`load`、`request`、`unload`と、DLLのエントリポイントである`DllMain`を定義するマクロがあります。
+伺かのDLLに使われる`load`と`loadu`、`request`、`unload`を定義するマクロがあります。
 
-おまけで、Dllへのパスを返す関数 `read_dll_path_string` も定義しています。
+Dllへのパスを返す関数 `read_dll_path_string`と、`dll_main`featureが有効のときのみ使用可能な、DLLのエントリポイントである`DllMain`を定義するマクロ`define_dll_main`も定義しています。
 
 ### 使い方
 
@@ -22,20 +22,14 @@ use ukagaka_dll_macro::*;
 
 また、以下に記載のないものについては、自分で`load`などを定義したいとき以外は、あまり触る必要はないと思います。
 
-### `define_dll_main`マクロ
-
-関数`DllMain`を定義します。
-
-引数は順番に、`DLL_PROCESS_ATTACH`時、`DLL_PROCESS_DETACH`時、`DLL_THREAD_ATTACH`時、`DLL_THREAD_DETACH`時の処理になります。
-それぞれ省略可で、もし、途中を飛ばしたい場合、`()`を指定してください。それでその時点での処理はなくなります。
-引数なしなら、以下の動作のみになります。
-内部で`DLL_PROCESS_ATTACH`時に`register_dll_path_string`を呼んで、DLLへのパスを記録しています。
-
 ### `define_load`マクロ
 
-関数`load`を定義します。
+関数`load`と`loadu`を定義します。
 
-引数で`bool`を返す関数名を渡してください(省略可)。
+引数で、DLLへのパスである`&str`を受けとり、`bool`を返す関数名を渡してください。
+内部でDLLへのパスを記録しています。(記録したパスは`read_dll_path_string`で呼び出せます)
+
+v1.1.0より、関数名は省略不可になりました。
 
 ### `define_request`マクロ
 
@@ -53,9 +47,17 @@ use ukagaka_dll_macro::*;
 
 DLLへのパスを`Option<String>`で返します。
 
-`register_dll_path_string` が呼ばれていないと、`None`しか返しません。
+`define_load` が呼ばれていないと、`None`しか返しません。
 
-`register_dll_path_string`は`define_dll_main`で呼ばれているので、`define_dll_main`を使用しているときは`register~`を手動で呼ぶ必要はありません。
+### `define_dll_main`マクロ(`dll_main`feature有効時のみ)
+
+関数`DllMain`を定義します。
+
+引数は順番に、`DLL_PROCESS_ATTACH`時、`DLL_PROCESS_DETACH`時、`DLL_THREAD_ATTACH`時、`DLL_THREAD_DETACH`時の処理になります。
+それぞれ省略可で、もし、途中を飛ばしたい場合、`()`を指定してください。それでその時点での処理はなくなります。
+引数なしなら、何もしません。(v1.1.0より)
+
+featureの`dll_main`が有効になっていないと使用できませんが、基本的な動作には必要ありません。
 
 ## 例
 
@@ -63,10 +65,9 @@ DLLへのパスを`Option<String>`で返します。
 // lib.rs
 use ukagaka_dll_macro::*;
 
-fn ukagaka_load() -> bool {
-    if let Some(_dll_path) = read_dll_path_string() {
-        // process with dll path
-    }
+// v1.1.0より、DLLのパスを引数にとるようになりました。
+fn ukagaka_load(_path: &str) -> bool {
+    // process with dll path
     true
 }
 
@@ -81,7 +82,8 @@ fn ukagaka_request(_s: &[u8]) -> Vec<i8> {
         .collect()
 }
 
-define_dll_main!();
+// v1.1.0より、`define_dll_main`マクロを呼ばなくても、
+// `define_load`が呼ばれていれば、DLLのパスを記録するようになりました。
 define_load!(ukagaka_load);
 define_request!(ukagaka_request);
 define_unload!();
@@ -92,6 +94,7 @@ define_unload!();
 いずれも敬称略。ありがとうございます。
 
 + [winapi\_rs](https://github.com/retep998/winapi-rs) / Peter Atashian
++ [encoding](https://github.com/lifthrasiir/rust-encoding) / Kang Seonghoon
 
 ## ライセンス
 

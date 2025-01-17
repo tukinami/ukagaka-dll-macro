@@ -1,6 +1,6 @@
 [package]
 name = "ukagaka-dll-macro"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = [ "tukinami seika" ]
 license = "MIT"
@@ -8,6 +8,18 @@ readme = "README.md"
 description = "macros for Ukagaka DLL."
 
 [dependencies]
+encoding = "0.2.33"
 
 [target.'cfg(windows)'.dependencies]
-winapi = {version = "0.3.9", features = ["winbase", "libloaderapi", "stringapiset"]}
+winapi = {version = "0.3.9", features = ["winbase", "winnls"]}
+
+[features]
+dll_main = []
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["i686-pc-windows-msvc"]
+rustdoc-args = ["--generate-link-to-definition", "--cfg", "docsrs"]
+
+[package.metadata.playground]
+features = ["dll_main"]
